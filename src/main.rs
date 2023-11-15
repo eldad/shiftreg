@@ -34,6 +34,7 @@ entry!(main);
  */
 
 enum Action {
+    Clear,
     ClearInverted,
     OutputEnableInverted,
     Serialize0,
@@ -91,12 +92,19 @@ impl Action {
     unsafe fn act(&self) {
         match self {
             Action::ClearInverted => furi_hal_gpio_write(PinMapping::SRCLR.gpio(), true),
+            Action::Clear => clock_pin(PinMapping::SRCLR.gpio(), false),
             Action::OutputEnableInverted => furi_hal_gpio_write(PinMapping::OE.gpio(), false),
             Action::Serialize0 => shift_bit(false),
             Action::Serialize1 => shift_bit(true),
             Action::Latch => clock_pin(PinMapping::RCLK.gpio(), true),
         };
     }
+}
+
+enum AppMode {
+    Manual,
+    Auto,
+    Immediate,
 }
 
 fn show_message(msgbytes: &[u8]) {
@@ -110,6 +118,89 @@ fn show_message(msgbytes: &[u8]) {
         Align::Top,
     );
     app.show_message(&msg);
+}
+
+fn immediate_mode() {
+    let mut app = DialogsApp::open();
+    let mut msg = DialogMessage::new();
+    msg.set_header(
+        CStr::from_bytes_with_nul(b"Shift Register Control\0").unwrap(),
+        0,
+        0,
+        Align::Left,
+        Align::Top,
+    );
+    msg.set_text(
+        CStr::from_bytes_with_nul(b"Immediate Mode\0").unwrap(),
+        0,
+        10,
+        Align::Left,
+        Align::Top,
+    );
+    msg.set_buttons(
+        Some(CStr::from_bytes_with_nul(b"0\0").unwrap()),
+        Some(CStr::from_bytes_with_nul(b"Clear\0").unwrap()),
+        Some(CStr::from_bytes_with_nul(b"1\0").unwrap()),
+    );
+
+    loop {
+        let button = app.show_message(&msg);
+
+        let action = match button {
+            flipperzero::dialogs::DialogMessageButton::Back => break,
+            flipperzero::dialogs::DialogMessageButton::Left => Action::Serialize0,
+            flipperzero::dialogs::DialogMessageButton::Right => Action::Serialize1,
+            flipperzero::dialogs::DialogMessageButton::Center => Action::Clear,
+        };
+
+        unsafe {
+            action.act();
+            Action::Latch.act();
+        }
+    }
+}
+
+fn manual_mode() {
+    let mut app = DialogsApp::open();
+    let mut msg = DialogMessage::new();
+    msg.set_header(
+        CStr::from_bytes_with_nul(b"Shift Register Control\0").unwrap(),
+        0,
+        0,
+        Align::Left,
+        Align::Top,
+    );
+    msg.set_text(
+        CStr::from_bytes_with_nul(b"Manual Mode\0").unwrap(),
+        0,
+        10,
+        Align::Left,
+        Align::Top,
+    );
+    msg.set_buttons(
+        Some(CStr::from_bytes_with_nul(b"0\0").unwrap()),
+        Some(CStr::from_bytes_with_nul(b"Latch\0").unwrap()),
+        Some(CStr::from_bytes_with_nul(b"1\0").unwrap()),
+    );
+
+    loop {
+        let button = app.show_message(&msg);
+
+        let action = match button {
+            flipperzero::dialogs::DialogMessageButton::Back => break,
+            flipperzero::dialogs::DialogMessageButton::Left => Action::Serialize0,
+            flipperzero::dialogs::DialogMessageButton::Right => Action::Serialize1,
+            flipperzero::dialogs::DialogMessageButton::Center => Action::Latch,
+        };
+
+        unsafe {
+            action.act();
+        }
+    }
+}
+
+fn auto_mode() {
+    show_message(b"Unavailable!\0");
 }
 
 // Entry point
@@ -135,28 +226,29 @@ fn main(_args: *mut u8) -> i32 {
         Align::Top,
     );
     msg.set_buttons(
-        Some(CStr::from_bytes_with_nul(b"0\0").unwrap()),
-        Some(CStr::from_bytes_with_nul(b"Latch\0").unwrap()),
-        Some(CStr::from_bytes_with_nul(b"1\0").unwrap()),
+        Some(CStr::from_bytes_with_nul(b"Manual\0").unwrap()),
+        Some(CStr::from_bytes_with_nul(b"Auto\0").unwrap()),
+        Some(CStr::from_bytes_with_nul(b"Instant\0").unwrap()),
     );
 
     loop {
         let button = app.show_message(&msg);
 
         let action = match button {
-            flipperzero::dialogs::DialogMessageButton::Back => {
-                show_message(b"Goodbye\0");
-                break;
-            }
-            flipperzero::dialogs::DialogMessageButton::Left => Action::Serialize0,
-            flipperzero::dialogs::DialogMessageButton::Right => Action::Serialize1,
-            flipperzero::dialogs::DialogMessageButton::Center => Action::Latch,
+            flipperzero::dialogs::DialogMessageButton::Back => break,
+            flipperzero::dialogs::DialogMessageButton::Left => AppMode::Manual,
+            flipperzero::dialogs::DialogMessageButton::Right => AppMode::Immediate,
+            flipperzero::dialogs::DialogMessageButton::Center => AppMode::Auto,
         };
 
-        unsafe {
-            action.act();
+        match action {
+            AppMode::Manual => manual_mode(),
+            AppMode::Auto => auto_mode(),
+            AppMode::Immediate => immediate_mode(),
         }
     }
+
+    show_message(b"Goodbye\0");
 
     0
 }
