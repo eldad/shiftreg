@@ -1,0 +1,27 @@
+cargo-features = ["different-binary-name"]
+
+[package]
+name = "shiftreg"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.64.0"
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+
+[[bin]]
+name = "shiftreg"
+filename = "shiftreg.fap"
+bench = false
+test = false
+
+[dependencies]
+# API too old for FW 0.93
+# flipperzero = { version = "0.11.0" }
+# flipperzero-sys = { version = "0.11.0" }
+# flipperzero-rt = { version = "0.11.0" }
+
+flipperzero = { git = "https://github.com/flipperzero-rs/flipperzero.git", rev = "f8aae1dcb50ab18bd60ce9300fcc2752117b8ba0" }
+flipperzero-sys = { git = "https://github.com/flipperzero-rs/flipperzero.git", rev = "f8aae1dcb50ab18bd60ce9300fcc2752117b8ba0" }
+flipperzero-rt = { git = "https://github.com/flipperzero-rs/flipperzero.git", rev = "f8aae1dcb50ab18bd60ce9300fcc2752117b8ba0" }
