@@ -63,29 +63,33 @@ impl PinMapping {
     }
 }
 
+fn sleep_ms(t: u64) {
+    sleep(core::time::Duration::from_millis(t));
+}
+
 unsafe fn shift_bit(state: bool) {
     let ser = PinMapping::SER.gpio();
     let clk = PinMapping::SRCLK.gpio();
 
     furi_hal_gpio_write(ser, state);
-    sleep(core::time::Duration::from_millis(1));
+    sleep_ms(1);
 
     furi_hal_gpio_write(clk, true);
-    sleep(core::time::Duration::from_millis(1));
+    sleep_ms(1);
 
     furi_hal_gpio_write(ser, false);
-    sleep(core::time::Duration::from_millis(1));
+    sleep_ms(1);
 
     furi_hal_gpio_write(clk, false);
-    sleep(core::time::Duration::from_millis(1));
+    sleep_ms(1);
 }
 
 unsafe fn clock_pin(pin: &GpioPin, state: bool) {
     furi_hal_gpio_write(pin, state);
-    sleep(core::time::Duration::from_millis(1));
+    sleep_ms(1);
 
     furi_hal_gpio_write(pin, !state);
-    sleep(core::time::Duration::from_millis(1));
+    sleep_ms(1);
 }
 
 impl Action {
@@ -199,8 +203,46 @@ fn manual_mode() {
     }
 }
 
+unsafe fn auto_mode_pattern_1() {
+    for _ in 0..=7 {
+        Action::Serialize1.act();
+        Action::Latch.act();
+        sleep_ms(100);
+    }
+    for _ in 0..=7 {
+        Action::Serialize0.act();
+        Action::Latch.act();
+        sleep_ms(100);
+    }
+}
+
+unsafe fn auto_mode_pattern_2() {
+    for i in 0..=15 {
+        if i & 1 == 0 {
+            Action::Serialize1.act();
+        } else {
+            Action::Serialize0.act();
+        }
+        Action::Latch.act();
+        sleep_ms(100);
+    }
+}
+
 fn auto_mode() {
-    show_message(b"Unavailable!\0");
+    unsafe {
+        Action::Clear.act();
+
+        for _ in 0..=2 {
+            auto_mode_pattern_1();
+        }
+        for _ in 0..=2 {
+            auto_mode_pattern_2();
+        }
+        for _ in 0..=2 {
+            auto_mode_pattern_1();
+            auto_mode_pattern_2();
+        }
+    }
 }
 
 // Entry point
