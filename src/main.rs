@@ -8,6 +8,7 @@ use flipperzero_rt::{entry, manifest};
 use flipperzero_sys::{
     furi_hal_gpio_init_simple, furi_hal_gpio_write, GpioMode_GpioModeOutputPushPull, GpioPin,
 };
+use sys::random;
 
 use core::ffi::CStr;
 
@@ -203,20 +204,20 @@ fn manual_mode() {
     }
 }
 
-unsafe fn auto_mode_pattern_1() {
+unsafe fn auto_mode_pattern_1(t: u64) {
     for _ in 0..=7 {
         Action::Serialize1.act();
         Action::Latch.act();
-        sleep_ms(100);
+        sleep_ms(t);
     }
     for _ in 0..=7 {
         Action::Serialize0.act();
         Action::Latch.act();
-        sleep_ms(100);
+        sleep_ms(t);
     }
 }
 
-unsafe fn auto_mode_pattern_2() {
+unsafe fn auto_mode_pattern_2(t: u64) {
     for i in 0..=15 {
         if i & 1 == 0 {
             Action::Serialize1.act();
@@ -224,7 +225,37 @@ unsafe fn auto_mode_pattern_2() {
             Action::Serialize0.act();
         }
         Action::Latch.act();
-        sleep_ms(100);
+        sleep_ms(t);
+    }
+}
+
+unsafe fn auto_mode_random(t: u64) {
+    let count_on = random() % 4 + 1;
+    let count_off = random() % 4 + 1;
+
+    let cycles = 3;
+
+    for _ in 0..=cycles {
+        for _ in 0..=count_on {
+            Action::Serialize1.act();
+            Action::Latch.act();
+            sleep_ms(t);
+        }
+        for _ in 0..=count_off {
+            Action::Serialize0.act();
+            Action::Latch.act();
+            sleep_ms(t);
+        }
+        for _ in 0..=count_on {
+            Action::Serialize1.act();
+            Action::Latch.act();
+            sleep_ms(t);
+        }
+    }
+    for _ in 0..=7 {
+        Action::Serialize0.act();
+        Action::Latch.act();
+        sleep_ms(t);
     }
 }
 
@@ -233,14 +264,18 @@ fn auto_mode() {
         Action::Clear.act();
 
         for _ in 0..=2 {
-            auto_mode_pattern_1();
+            auto_mode_pattern_1(100);
+            auto_mode_random(44);
         }
         for _ in 0..=2 {
-            auto_mode_pattern_2();
+            auto_mode_pattern_2(90);
+            auto_mode_random(33);
         }
         for _ in 0..=2 {
-            auto_mode_pattern_1();
-            auto_mode_pattern_2();
+            auto_mode_pattern_1(50);
+            auto_mode_random(44);
+            auto_mode_pattern_2(50);
+            auto_mode_random(44);
         }
     }
 }
