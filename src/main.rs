@@ -259,24 +259,70 @@ unsafe fn auto_mode_random(t: u64) {
     }
 }
 
+unsafe fn clock_byte(v: u8) {
+    Action::Clear.act();
+
+    let mut b = v;
+    for _ in 0..=7 {
+        if b & 1 == 0 {
+            Action::Serialize0.act();
+        } else {
+            Action::Serialize1.act();
+        }
+        b >>= 1;
+    }
+
+    Action::Latch.act();
+}
+
+unsafe fn auto_mode_pingpong(t: u64, last: bool) {
+    let pattern = [0x18, 0x24, 0x42, 0x81, 0x42, 0x24];
+
+    for p in pattern {
+        clock_byte(p);
+        sleep_ms(t);
+    }
+
+    if last {
+        clock_byte(pattern[0]);
+        sleep_ms(t);
+    }
+}
+
+unsafe fn auto_mode_blinkpong(t: u64) {
+    let pattern = [0, 0x18, 0, 0x18, 0, 0x18, 0, 0x18, 0, 0x24, 0, 0x42, 0, 0x81, 0, 0x42, 0, 0x18, 0, 0x24, 0, 0x42, 0, 0x81, 0];
+    for p in pattern {
+        clock_byte(p);
+        sleep_ms(t);
+    }
+}
+
 fn auto_mode() {
     unsafe {
         Action::Clear.act();
 
+        for i in 0..=10 {
+            auto_mode_pingpong(100 / (i * i + 1), i == 10);
+        }
+        auto_mode_blinkpong(50);
         for _ in 0..=2 {
             auto_mode_pattern_1(100);
             auto_mode_random(44);
         }
+        auto_mode_pingpong(30, true);
         for _ in 0..=2 {
             auto_mode_pattern_2(90);
             auto_mode_random(33);
         }
+        auto_mode_pingpong(20, true);
         for _ in 0..=2 {
             auto_mode_pattern_1(50);
             auto_mode_random(44);
             auto_mode_pattern_2(50);
             auto_mode_random(44);
         }
+        auto_mode_pingpong(10, true);
+        auto_mode_blinkpong(50);
     }
 }
 
